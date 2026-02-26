@@ -6194,7 +6194,7 @@
       "port"
     ]
 },
-
+  
   {
     "id": 705,
     "name": "Five Nights at Epstein's",
@@ -6204,7 +6204,6 @@
     "authorLink": "https://evanproductions.itch.io/five-nights-at-epsteins",
     "special": [
       "port"
-    ],
-    "featured": true
+    ]
   }
 ]
