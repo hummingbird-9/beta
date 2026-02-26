@@ -50,19 +50,6 @@ body.dark-mode #container {
     margin: 0 auto;
 }
 
-body.dark-mode .zone-item {
-    background: rgba(10, 60, 40, 0.4);
-    border: 1px solid rgba(15, 60, 41, 0.5);
-    border-radius: 15px;
-    overflow: hidden;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(15, 60, 41, 0.3);
-    cursor: pointer;
-    color: #aad9c3;
-    transition: background 0.3s ease, box-shadow 0.3s ease;
-    backdrop-filter: saturate(140%) blur(12px);
-    -webkit-backdrop-filter: saturate(140%) blur(12px);
-}
 
 body.dark-mode .zone-item:hover {
     background: rgba(20, 80, 55, 0.6);
@@ -304,6 +291,49 @@ body:not(.dark-mode) .zone-item {
     transition: background 0.3s ease, box-shadow 0.3s ease;
     backdrop-filter: saturate(120%) blur(15px);
     -webkit-backdrop-filter: saturate(120%) blur(15px);
+}
+/* Liquid glass style for Load More button */
+#loadMoreBtn {
+    background: rgba(10, 60, 40, 0.4);
+    border: 1px solid rgba(160, 220, 190, 0.4);
+    border-radius: 15px;
+    color: #aad9c3;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 12px 25px;
+    box-shadow: 0 4px 12px rgba(15, 60, 41, 0.3);
+    backdrop-filter: saturate(140%) blur(12px);
+    -webkit-backdrop-filter: saturate(140%) blur(12px);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    display: block;
+    margin: 20px auto;
+}
+
+#loadMoreBtn:hover {
+    background: rgba(20, 80, 55, 0.6);
+    box-shadow: 0 8px 25px rgba(15, 60, 41, 0.5);
+}
+
+/* Liquid glass style for zone cards */
+.zone-item {
+    background: rgba(10, 60, 40, 0.4);
+    border: 1px solid rgba(160, 220, 190, 0.4);
+    border-radius: 15px;
+    color: #aad9c3;    
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(15, 60, 41, 0.3);
+    text-align: center;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    backdrop-filter: saturate(140%) blur(12px);
+    -webkit-backdrop-filter: saturate(140%) blur(12px);
+}
+
+
+.zone-item:hover {
+    background: rgba(20, 80, 55, 0.6);
+    box-shadow: 0 8px 25px rgba(15, 60, 41, 0.6);
 }
 
 body:not(.dark-mode) .zone-item:hover {
