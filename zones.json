@@ -6238,6 +6238,16 @@
     "special": [
       "port"
     ]
+  },
+    {
+    "id": 709,
+    "name": "32-bit Virtual Machine",
+    "cover": "https://repository-images.githubusercontent.com/309350961/5bb5ad00-3a5b-11eb-8ebf-7414be5f08e0",
+    "url": "{HTML_URL}/709.html",
+    "author": "hummingbird-9 and copy (mainly copy for the wasm)",
+    "authorLink": "copy.sh",
+    "special": [
+      "port"
+    ]
   }
-
 ]
