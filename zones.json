@@ -6526,20 +6526,9 @@
   },
   {
     "id": 737,
-    "name": "Saihate Station (さいはて駅)",
-    "cover": "{COVER_URL}/737.png",
-    "url": "{HTML_URL}/737.html",
-    "author": "びぶ/viv",
-    "authorLink": "https://store.steampowered.com/app/3079280/Saihate_Station/",
-    "special": [
-      "port"
-    ]
-  },
-  {
-    "id": 738,
     "name": "Eaglercraft 1.12.2 WASM-GC",
     "cover": "{COVER_URL}/182.png",
-    "url": "{HTML_URL}/738.html",
+    "url": "{HTML_URL}/737.html",
     "author": "hummingbird-9",
     "authorLink": "main.hummingbird.rf.gd",
     "special": [
