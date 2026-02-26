@@ -6193,8 +6193,8 @@
     "special": [
       "port"
     ]
-}
-]
+},
+
   {
     "id": 705,
     "name": "Five Nights at Epstein's",
@@ -6206,5 +6206,5 @@
       "port"
     ],
     "featured": true
-  },
-
+  }
+]
