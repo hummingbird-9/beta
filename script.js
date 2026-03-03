@@ -26,7 +26,6 @@ async function listZones() {
     sortZones();
     displayZonesPaginated();
 
-    // If ?id= is present in URL, open that zone
     const search = new URLSearchParams(window.location.search);
     const id = search.get('id');
     if (id) {
@@ -96,6 +95,11 @@ function handleLoadMoreButton(show) {
 function filterZones() {
   const q = searchBar.value.toLowerCase();
   filteredZones = zones.filter(z => z.name.toLowerCase().includes(q));
+  // sort filteredZones as per current sorting option
+  const sortBy = sortOptions.value;
+  if (sortBy === 'name') filteredZones.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sortBy === 'id') filteredZones.sort((a, b) => a.id - b.id);
+  // else you can add other sorting here if needed
   currentPage = 0;
   container.innerHTML = "";
   displayZonesPaginated();
@@ -105,10 +109,7 @@ function sortZones() {
   const sortBy = sortOptions.value;
   if (sortBy === 'name') filteredZones.sort((a, b) => a.name.localeCompare(b.name));
   else if (sortBy === 'id') filteredZones.sort((a, b) => a.id - b.id);
-
-  // else leave original order if popularity unavailable or default
-
-  // Reset pagination on new sort
+  // no resetting filteredZones here, keep current filteredZones
   currentPage = 0;
   container.innerHTML = "";
   displayZonesPaginated();
@@ -116,7 +117,7 @@ function sortZones() {
 
 function openZone(zone) {
   if (zone.url.startsWith("http")) {
-    window.location.href = zone.url; // external link
+    window.location.href = zone.url;
   } else {
     const url = zone.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
     fetch(url)
@@ -131,6 +132,7 @@ function openZone(zone) {
       }).catch(e => alert("Failed to load zone: " + e));
   }
 }
+
 function closeZone() {
   zoneViewer.style.display = "none";
 }
@@ -196,10 +198,6 @@ darkModeToggle.addEventListener('click', () => {
 });
 
 searchBar.addEventListener('input', filterZones);
-sortOptions.addEventListener('change', () => {
-  sortZones();
-  // reset search so it filters sorted zones
-  filterZones();
-});
+sortOptions.addEventListener('change', sortZones);
 
 listZones();
