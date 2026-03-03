@@ -6260,5 +6260,16 @@
     "special": [
       "port"
     ]
+  },
+    {
+    "id": 711,
+    "name": "Outertale",
+    "cover": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8u3w06dPp3T9lZ3g5fBFEHSHuZUeCOqrDvA&s",
+    "url": "{HTML_URL}/711.html",
+    "author": "Project Spacetime",
+    "authorLink": "https://www.google.com/search?q=project+spacetime+outertale+website&rlz=1CAAUXW_enUS1189&oq=project+spacetime+outertale+website&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIHCAEQIRigATIHCAIQIRigATIHCAMQIRigATIHCAQQIRigATIHCAUQIRigAdIBCDc5ODhqMGo5qAIGsAIB8QV-w6-SaGalqg&sourceid=chrome&ie=UTF-8&safe=active&ssui=on#:~:text=Outertale%20(Project%20Spacetime)%20by%20Spacey%20%2D%20Play,https%3A//gamejolt.com%20%E2%80%BA%20games%20%E2%80%BA%20outertale",
+    "special": [
+      "port"
+    ]
   }
 ]
