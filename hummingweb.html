@@ -25,7 +25,7 @@
     const db = getFirestore(app);
 
     const SERPER_KEY = "f54edce2f81eba9a0ca1eb215421ace425de05d6";
-    const GEMINI_KEY = "AIzaSyCPW3q-vtd9TD81-vtN6vbTB4Y0YdMTS5o";
+    const GEMINI_KEY = "INSERT_KEY_HERE"; // Replace with your Gemini API key securely (do not expose in public repos)
     const GEMINI_MODEL = "gemini-2.5-flash";
 
     // UI REFS
@@ -39,6 +39,11 @@
     let chatHistory = [];
     let currentUser = null;
 
+    // Utility: wrap URLs with proxy to bypass blocks
+    function proxyUrl(url) {
+      return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    }
+
     // --- AUTHENTICATION ---
     onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -46,23 +51,46 @@
         document.getElementById("user-email-top").textContent = user.email;
         document.getElementById("signin-btn-top").style.display = "none";
         document.getElementById("signout-btn-top").style.display = "inline-block";
+        document.getElementById("signin-form").style.display = "none"; // Hide sign-in form after login
         const docSnap = await getDoc(doc(db, "users", user.uid));
         if (docSnap.exists() && docSnap.data().chatHistory) {
           chatHistory = docSnap.data().chatHistory;
           chatStream.innerHTML = chatHistory.map(m => `<div class="msg ${m.role==='user'?'user':'bot'}">${m.parts[0].text}</div>`).join("");
         }
+      } else {
+        currentUser = null;
+        document.getElementById("user-email-top").textContent = '';
+        document.getElementById("signin-btn-top").style.display = "inline-block";
+        document.getElementById("signout-btn-top").style.display = "none";
+        chatHistory = [];
+        chatStream.innerHTML = "";
       }
     });
 
-    window.handleSignIn = async () => { try { await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value); } catch(e) { alert(e.message); } };
-    window.handleSignUp = async () => { try { await createUserWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value); } catch(e) { alert(e.message); } };
+    window.handleSignIn = async () => {
+      try {
+        await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value);
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    window.handleSignUp = async () => {
+      try {
+        await createUserWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value);
+      } catch(e) {
+        alert(e.message);
+      }
+    };
     window.handleSignOut = () => signOut(auth);
 
     // --- TAB SYSTEM ---
     window.setTab = (t) => {
       mode = t;
       document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-      document.getElementById(`tab-${t}`).classList.add("active");
+      // Activate clicked tab only once (avoid duplicate IDs with 'shorts' and others triggering same tab).
+      if(t === 'shorts') t = 'videos';
+      const targetTab = document.getElementById(`tab-${t}`);
+      if(targetTab) targetTab.classList.add("active");
       aiChatWindow.style.display = (mode === "ai") ? "block" : "none";
       resultsArea.style.display = (mode === "ai") ? "none" : "block";
       if (queryInput.value) executeSearch();
@@ -71,10 +99,9 @@
     // --- AI CHAT SYSTEM (FIXED) ---
     async function runAiChat(q) {
       chatStream.innerHTML += `<div class="msg user"><b>You:</b> ${q}</div>`;
-      // Ensure exact structure Gemini requires
       chatHistory.push({ role: "user", parts: [{ text: q }] });
       queryInput.value = "";
-     
+
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`, {
           method: "POST",
@@ -84,7 +111,7 @@
             systemInstruction: { parts: [{ text: "You are an expert. Answer thoroughly." }] }
           })
         });
-       
+
         const data = await response.json();
         if(data.error) throw new Error(data.error.message);
 
@@ -92,11 +119,11 @@
         chatStream.innerHTML += `<div class="msg bot"><b>humming[bird]:</b> ${reply.replace(/\n/g, '<br>')}</div>`;
         chatHistory.push({ role: "model", parts: [{ text: reply }] });
         aiChatWindow.scrollTop = aiChatWindow.scrollHeight;
-       
+
         if(currentUser) await setDoc(doc(db, "users", currentUser.uid), { chatHistory }, { merge: true });
       } catch (e) {
         chatStream.innerHTML += `<div class="msg bot" style="color:red">Error: ${e.message}</div>`;
-        chatHistory.pop(); // Remove failed prompt so it doesn't break future requests
+        chatHistory.pop();
       }
     }
 
@@ -117,7 +144,7 @@
         });
         const data = await res.json();
         let html = "";
-       
+
         // AI OVERVIEW WITH IMAGES
         if (mode === "search" && document.getElementById("ai-check").checked) {
           const overview = data.aiOverview?.answer || data.answerBox?.snippet || data.answerBox?.answer;
@@ -130,15 +157,15 @@
           }
         }
 
-        // RESULTS RENDERING
+        // RESULTS RENDERING with proxied URLs to bypass blocks
         if (mode === "images") {
           html += `<div class="grid-container">` + data.images.map(img => `
-            <div class="card" onclick="openImageModal('${img.imageUrl}', '${img.link}')">
+            <div class="card" onclick="openImageModal('${img.imageUrl}', proxyUrl('${img.link}'))">
               <img src="${img.imageUrl}"><p>${img.title}</p>
             </div>`).join("") + `</div>`;
         } else if (mode === "shopping") {
-           html += `<div class="grid-container">` + data.shopping.map(s => `
-            <div class="card"><a href="${s.link}" target="_self"><img src="${s.imageUrl}"><b>${s.price}</b><p>${s.title}</p></a></div>
+          html += `<div class="grid-container">` + data.shopping.map(s => `
+            <div class="card"><a href="${proxyUrl(s.link)}" target="_self"><img src="${s.imageUrl}"><b>${s.price}</b><p>${s.title}</p></a></div>
            `).join("") + `</div>`;
         } else {
           const items = data.organic || data.videos || [];
@@ -149,7 +176,7 @@
             return `
               <div class="result-item">
                 <div class="res-content">
-                  <a href="${i.link}" target="_self">${i.title}</a>
+                  <a href="${proxyUrl(i.link)}" target="_self">${i.title}</a>
                   <p>${i.snippet || i.description || ""}</p>
                 </div>
                 ${thumb}
@@ -196,6 +223,17 @@
     };
     window.closeModal = () => document.getElementById('image-modal').style.display = 'none';
 
+    // Make hummingbird logo redirect to search?q=
+    document.addEventListener('DOMContentLoaded', () => {
+      const logo = document.querySelector('header .logo-img');
+      if (logo) {
+        logo.style.cursor = 'pointer';
+        logo.onclick = () => {
+          const q = document.getElementById('query').value.trim();
+          window.location.href = `search?q=${encodeURIComponent(q)}`;
+        };
+      }
+    });
   </script>
 
   <style>
@@ -203,14 +241,14 @@
     :root { --emerald: #90E4C1; --bg-modern: #051a05; --win-teal: #008080; --win-grey: #c0c0c0; }
 
 body.modern { 
-    background: linear-gradient(135deg, #0a2e0a, #1a5d1a, #0a2e0a, #1a5d1a);
-    background-size: 400% 400%;
-    animation: gradientBG 20s ease infinite;
+  background: linear-gradient(135deg, #0a2e0a, #1a5d1a, #0a2e0a, #1a5d1a);
+  background-size: 400% 400%;
+  animation: gradientBG 20s ease infinite;
 
-    color: #fff; 
-    font-family: 'Inter', sans-serif; 
-    padding: 180px 20px 40px 20px; 
-    margin: 0; 
+  color: #fff; 
+  font-family: 'Inter', sans-serif; 
+  padding: 180px 20px 40px 20px; 
+  margin: 0; 
 }
 
 /* gradient animation */
@@ -227,69 +265,421 @@ body.modern #query { background: rgba(0,0,0,0.6); border: 2px solid var(--emeral
 body.modern .ai-overview { background: rgba(144, 228, 193, 0.1); border-left: 6px solid var(--emerald); border-radius: 12px; padding: 20px; margin-bottom: 30px; max-width: 800px; }
 body.modern .btn { border: 2px solid var(--emerald); background: #000; color: var(--emerald); border-radius: 8px; }
 
+/* AI mode tab in modern style */
+#tab-ai {
+  color: var(--emerald);
+}
 
-    /* --- CLASSIC THEME  --- */
+/* --- CLASSIC THEME  --- */
 body.classic { background: var(--win-grey); color: #000; font-family: "Tahoma", "MS Sans Serif", sans-serif; padding: 180px 20px 40px 20px; margin: 0; }
 body.classic #search-container { background: var(--win-grey); padding: 15px; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; }
 body.classic .result-item { background: #fff; border: 2px inset #fff; padding: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; max-width: 800px; }
 body.classic .result-item a { color: #0000FF; text-decoration: underline; font-size: 1.1rem; }
 body.classic .res-thumb { width: 100px; height: 100px; border: 1px solid #000; margin-left: 15px; }
-body.classic #query { background: #fff; border-top: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #fff; border-bottom: 2px solid #fff; color: #000; padding: 10px; border-radius: 0; }
-body.classic .btn { background: var(--win-grey); color: #000; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; border-radius: 0; }
-body.classic .btn:active { border-top: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #fff; border-bottom: 2px solid #fff; }
-body.classic .tab { border: 2px solid transparent; }
-body.classic .tab.active { background: #000080; color: #fff; border: 2px inset #fff; }
-body.classic .ai-overview { background: #fff; border: 2px inset #fff; padding: 15px; margin-bottom: 20px; max-width: 800px; }
 
-    /* --- GLOBAL LAYOUT --- */
-    body { display: flex; flex-direction: column; align-items: center; }
-    header { position: fixed; top: 0; width: 100%; text-align: center; z-index: 10; padding: 15px 0; pointer-events: none; }
-    .logo-img { max-width: 190px; pointer-events: auto; }
-    #top-controls { position: fixed; top: 10px; width: 95%; max-width: 900px; display: flex; justify-content: space-between; z-index: 100; pointer-events: none; }
-    #top-controls * { pointer-events: auto; }
-   
-    #search-container { width: 100%; max-width: 850px; z-index: 50; position: relative; }
-    .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
-    #query { flex: 1; padding: 15px; font-size: 1.1rem; outline: none; }
-    .btn { cursor: pointer; padding: 8px 15px; font-weight: bold; }
+/* Neutral signin form colors in classic style and NO curves */
+body.classic #signin-form {
+  background: #ddd !important;
+  border: 2px solid #666 !important;
+  border-radius: 0 !important;
+  width: 280px !important;
+  padding: 15px !important;
+  box-sizing: border-box;
+  top: 70px !important;
+  right: 20px !important;
+  position: fixed;
+  z-index: 1100;
+  display: none;
+}
+body.classic #signin-form input {
+  background: #eee !important;
+  color: #000 !important;
+  border: 1px solid #666 !important;
+  padding: 6px !important;
+  margin-bottom: 8px !important;
+  border-radius: 0 !important;
+  box-sizing: border-box;
+  width: 100% !important;
+}
 
-    #tabs { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; justify-content: center; }
-    .tab { cursor: pointer; opacity: 0.7; font-weight: bold; padding: 5px 10px; transition: 0.2s; }
-    .tab.active { opacity: 1; border-bottom: 3px solid var(--emerald); color: var(--emerald); }
+/* Remove all border-radius for classic style */
+body.classic #query {
+  background: #fff;
+  border-top: 2px solid #000;
+  border-left: 2px solid #000;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  color: #000;
+  padding: 10px;
+  border-radius: 0;
+}
+body.classic .btn {
+  background: var(--win-grey);
+  color: #000;
+  border-top: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-right: 2px solid #000;
+  border-bottom: 2px solid #000;
+  font-weight: bold;
+  border-radius: 0;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
 
-    .ai-img-row { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; }
-    .ai-inline-img { height: 100px; border-radius: 8px; border: 1px solid var(--emerald); object-fit: cover; }
+/* Pressed down effect for buttons in classic style */
+body.classic .btn:active {
+  border-top: 2px solid #000;
+  border-left: 2px solid #000;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(2px);
+}
 
-    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 15px; width: 100%; }
-    .card { cursor: pointer; transition: 0.2s; }
-    .card:hover { transform: scale(1.02); }
-    .card img { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--emerald); }
-    .card a { text-decoration: none; color: inherit; }
+body.classic .tab {
+  border: 2px solid transparent;
+  cursor: pointer;
+  border-radius: 0;
+}
+body.classic .tab.active {
+  background: #000080;
+  color: #fff;
+  border: 2px inset #fff;
+  border-radius: 0;
+}
 
-    #ai-chat-window { height: 450px; overflow-y: auto; background: rgba(0,0,0,0.4); border: 2px solid var(--emerald); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-    .msg { margin-bottom: 15px; padding: 12px; border-radius: 10px; max-width: 85%; line-height: 1.5; }
-    .msg.user { background: rgba(255,255,255,0.1); margin-left: auto; border-bottom-right-radius: 0; }
-    .msg.bot { background: #fff; color: #000; border-bottom-left-radius: 0; }
+/* Override AI mode tab color in classic (remove neon cyan, use standard) */
+body.classic #tab-ai {
+  color: #000080 !important;
+  background: transparent !important;
+}
 
-    /* --- LIQUID GLASS CONTEXT MENU --- */
-    #context-menu { display: none; position: absolute; z-index: 99999; width: 220px; background: rgba(20, 20, 20, 0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); padding: 10px 0; color: white; font-family: 'Inter', sans-serif; }
-    .ctx-item { padding: 12px 20px; cursor: pointer; transition: background 0.2s; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
-    .ctx-item:hover { background: rgba(255,255,255,0.1); border-left: 3px solid var(--emerald); }
+/* Classic style context menu and inspect element styles */
+body.classic #context-menu {
+  background: #fff;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: "Tahoma", "MS Sans Serif", sans-serif;
+  font-size: 12px;
+  padding: 4px 0;
+  width: 200px;
+}
 
-    /* --- IMAGE MODAL (LIGHTBOX) --- */
-    #image-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100000; justify-content: center; align-items: center; flex-direction: column; }
-    #modal-img { max-width: 80%; max-height: 70vh; border: 2px solid var(--emerald); border-radius: 10px; margin-bottom: 20px; box-shadow: 0 0 30px rgba(144, 228, 193, 0.3); }
-    .modal-controls { display: flex; gap: 15px; }
-    .close-btn { position: absolute; top: 20px; right: 30px; font-size: 40px; color: white; cursor: pointer; }
-    .close-btn:hover { color: var(--emerald); }
+body.classic .ctx-item {
+  padding: 6px 12px;
+  color: #000;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+}
+body.classic .ctx-item:hover {
+  background: #000080;
+  color: #fff;
+  border: none;
+  border-radius: 0;
+}
 
-    #signin-form { position: fixed; top: 70px; right: 20px; background: #000; border: 2px solid var(--emerald); padding: 20px; border-radius: 15px; z-index: 1000; width: 280px; }
-    #signin-form input { width: 100%; margin-bottom: 10px; padding: 10px; background: #222; color: #fff; border: 1px solid var(--emerald); }
+/* AI overview */
+body.classic .ai-overview {
+  background: #fff;
+  border: 2px inset #fff;
+  padding: 15px;
+  margin-bottom: 20px;
+  max-width: 800px;
+  border-radius: 0;
+}
+
+/* --- GLOBAL LAYOUT --- */
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 100px; /* to make space for top left/right groups */
+}
+
+/* Header logo remains fixed top center */
+header {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  text-align: center;
+  z-index: 10;
+  padding: 15px 0;
+  pointer-events: none;
+}
+.logo-img {
+  max-width: 190px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Top left controls container */
+#top-left-controls {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 1000;
+  pointer-events: auto;
+  color: var(--emerald);
+  font-weight: bold;
+  user-select: none;
+}
+/* Remove background and curves from top controls in classic */
+body.classic #top-left-controls {
+  background: transparent;
+  color: #000;
+  font-weight: normal;
+}
+
+/* Top right auth controls container */
+#top-right-controls {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+#top-right-controls span {
+  font-weight: bold;
+  color: var(--emerald);
+}
+body.classic #top-right-controls span {
+  color: #000;
+  font-weight: normal;
+}
+
+/* Sign in and sign out buttons */
+#signin-btn-top, #signout-btn-top {
+  font-weight: bold;
+}
+body.classic #signin-btn-top,
+body.classic #signout-btn-top {
+  background: var(--win-grey);
+  color: #000;
+  border-top: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-right: 2px solid #000;
+  border-bottom: 2px solid #000;
+  border-radius: 0;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+body.classic #signin-btn-top:active,
+body.classic #signout-btn-top:active {
+  border-top: 2px solid #000;
+  border-left: 2px solid #000;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(2px);
+}
+
+/* AI summaries checkbox */
+#ai-check {
+  vertical-align: middle;
+  accent-color: var(--emerald);
+}
+body.classic #ai-check {
+  accent-color: #000;
+}
+
+/* Mode switch text */
+#mode-text {
+  cursor: pointer;
+}
+
+/* Tabs and search container positioning */
+#search-container {
+  width: 100%;
+  max-width: 850px;
+  z-index: 50;
+  position: relative;
+  margin-top: 30px; /* spacing from top left/right */
+}
+.search-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+#query {
+  flex: 1;
+  padding: 15px;
+  font-size: 1.1rem;
+  outline: none;
+}
+.btn {
+  cursor: pointer;
+  padding: 8px 15px;
+  font-weight: bold;
+}
+
+#tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.tab {
+  cursor: pointer;
+  opacity: 0.7;
+  font-weight: bold;
+  padding: 5px 10px;
+  transition: 0.2s;
+}
+.tab.active {
+  opacity: 1;
+  border-bottom: 3px solid var(--emerald);
+  color: var(--emerald);
+}
+
+.ai-img-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  overflow-x: auto;
+}
+.ai-inline-img {
+  height: 100px;
+  border-radius: 8px;
+  border: 1px solid var(--emerald);
+  object-fit: cover;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 15px;
+  width: 100%;
+}
+.card {
+  cursor: pointer;
+  transition: 0.2s;
+}
+.card:hover {
+  transform: scale(1.02);
+}
+.card img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--emerald);
+}
+.card a {
+  text-decoration: none;
+  color: inherit;
+}
+
+#ai-chat-window {
+  height: 450px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid var(--emerald);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.msg {
+  margin-bottom: 15px;
+  padding: 12px;
+  border-radius: 10px;
+  max-width: 85%;
+  line-height: 1.5;
+}
+.msg.user {
+  background: rgba(255,255,255,0.1);
+  margin-left: auto;
+  border-bottom-right-radius: 0;
+}
+.msg.bot {
+  background: #fff;
+  color: #000;
+  border-bottom-left-radius: 0;
+}
+
+/* --- LIQUID GLASS CONTEXT MENU --- */
+#context-menu {
+  display: none;
+  position: absolute;
+  z-index: 99999;
+  width: 220px;
+  background: rgba(20, 20, 20, 0.4);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  padding: 10px 0;
+  color: white;
+  font-family: 'Inter', sans-serif;
+}
+.ctx-item {
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ctx-item:hover {
+  background: rgba(255,255,255,0.1);
+  border-left: 3px solid var(--emerald);
+}
+
+/* --- IMAGE MODAL (LIGHTBOX) --- */
+#image-modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.9);
+  z-index: 100000;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+#modal-img {
+  max-width: 80%;
+  max-height: 70vh;
+  border: 2px solid var(--emerald);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 30px rgba(144, 228, 193, 0.3);
+}
+.modal-controls {
+  display: flex;
+  gap: 15px;
+}
+.close-btn {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  font-size: 40px;
+  color: white;
+  cursor: pointer;
+}
+.close-btn:hover {
+  color: var(--emerald);
+}
   </style>
 </head>
 
 <body id="main-body" class="modern">
- 
+
   <div id="context-menu">
     <div class="ctx-item" onclick="toggleThemeMenu()">Toggle Modern/Old(HTML4)</div>
     <div class="ctx-item" onclick="launchInspector()">Inspect Element</div>
@@ -306,26 +696,24 @@ body.classic .ai-overview { background: #fff; border: 2px inset #fff; padding: 1
 
   <header><img src="https://uploads.onecompiler.io/447kr4gf2/44f9wbztv/humming%5Bbird%5DTech%20logo%20(6).png" class="logo-img"></header>
 
-<div id="top-controls">
-  <div class="left-toggle-group">
-    <div class="mode-switch-container" onclick="toggleThemeMenu()">
-      <div id="mode-status-icon"></div>
-      <span id="mode-text">Modern Style/HTML4 Style (Click to Toggle)</span>
+  <div id="top-left-controls">
+    <div class="mode-switch-container" onclick="toggleThemeMenu()" title="Toggle Modern/Old(HTML4)">
+      <span id="mode-text">Modern Style/HTML4 Style</span>
     </div>
-    <label style="margin-left:15px; font-size: 0.8rem; opacity: 0.8;">
+    <label style="font-size: 0.8rem; opacity: 0.8; margin-left: 10px;">
       <input type="checkbox" id="ai-check" checked> AI Summaries
     </label>
   </div>
- 
-  <div class="right-auth-group">
-    <span id="user-email-top" style="color:var(--emerald); font-weight:bold; margin-right:10px"></span>
+
+  <div id="top-right-controls">
+    <span id="user-email-top"></span>
     <button class="btn" onclick="document.getElementById('signin-form').style.display='block'" id="signin-btn-top">Sign In</button>
     <button class="btn" style="display:none;" id="signout-btn-top" onclick="handleSignOut()">Sign Out</button>
   </div>
-</div>
 
   <div id="signin-form" style="display:none;">
-    <input type="email" id="email" placeholder="Email"><input type="password" id="password" placeholder="Password">
+    <input type="email" id="email" placeholder="Email" autocomplete="username">
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
     <button class="btn" style="width:100%; margin-bottom:10px;" onclick="handleSignIn()">Login</button>
     <button class="btn" style="width:100%; background:#222;" onclick="handleSignUp()">Sign Up</button>
   </div>
@@ -338,7 +726,7 @@ body.classic .ai-overview { background: #fff; border: 2px inset #fff; padding: 1
 
     <div id="tabs">
       <div class="tab active" id="tab-search" onclick="setTab('search')">All</div>
-      <div class="tab" id="tab-ai" onclick="setTab('ai')" style="color:var(--emerald)">AI mode</div>
+      <div class="tab" id="tab-ai" onclick="setTab('ai')">AI mode</div>
       <div class="tab" id="tab-images" onclick="setTab('images')">Images</div>
       <div class="tab" id="tab-videos" onclick="setTab('videos')">Videos</div>
       <div class="tab" id="tab-shorts" onclick="setTab('videos')">Shorts</div>
