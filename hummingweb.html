@@ -44,6 +44,13 @@
       return `https://corsproxy.io/?${encodeURIComponent(url)}`;
     }
 
+    // Open links inside the app with /search?q=... proxy for external sites
+    function openUnblocked(url) {
+      const encoded = encodeURIComponent(url);
+      // Redirect inside app with search?q= or proxy directly
+      window.location.href = `/search?q=${encoded}`;
+    }
+
     // --- AUTHENTICATION ---
     onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -87,7 +94,6 @@
     window.setTab = (t) => {
       mode = t;
       document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-      // Activate clicked tab only once (avoid duplicate IDs with 'shorts' and others triggering same tab).
       if(t === 'shorts') t = 'videos';
       const targetTab = document.getElementById(`tab-${t}`);
       if(targetTab) targetTab.classList.add("active");
@@ -134,7 +140,7 @@
       if (mode === "ai") { await runAiChat(q); return; }
 
       resultsArea.innerHTML = "<div class='loading'>Our hummingbird army is looking for relevant sites...</div>";
-      let endpoint = ["images", "videos", "shopping"].includes(mode) ? mode : "search";
+      const endpoint = ["images", "videos", "shopping"].includes(mode) ? mode : "search";
 
       try {
         const res = await fetch(`https://google.serper.dev/${endpoint}`, {
@@ -160,12 +166,12 @@
         // RESULTS RENDERING with proxied URLs to bypass blocks
         if (mode === "images") {
           html += `<div class="grid-container">` + data.images.map(img => `
-            <div class="card" onclick="openImageModal('${img.imageUrl}', proxyUrl('${img.link}'))">
+            <div class="card" onclick="openImageModal('${img.imageUrl}', '${img.link.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')">
               <img src="${img.imageUrl}"><p>${img.title}</p>
             </div>`).join("") + `</div>`;
         } else if (mode === "shopping") {
           html += `<div class="grid-container">` + data.shopping.map(s => `
-            <div class="card"><a href="${proxyUrl(s.link)}" target="_self"><img src="${s.imageUrl}"><b>${s.price}</b><p>${s.title}</p></a></div>
+            <div class="card"><a href="javascript:void(0)" onclick="openUnblocked('${s.link.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')"><img src="${s.imageUrl}"><b>${s.price}</b><p>${s.title}</p></a></div>
            `).join("") + `</div>`;
         } else {
           const items = data.organic || data.videos || [];
@@ -176,7 +182,7 @@
             return `
               <div class="result-item">
                 <div class="res-content">
-                  <a href="${proxyUrl(i.link)}" target="_self">${i.title}</a>
+                  <a href="javascript:void(0)" onclick="openUnblocked('${i.link.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')">${i.title}</a>
                   <p>${i.snippet || i.description || ""}</p>
                 </div>
                 ${thumb}
@@ -218,19 +224,22 @@
     // --- IMAGE MODAL LOGIC ---
     window.openImageModal = (imgSrc, siteUrl) => {
       document.getElementById('modal-img').src = imgSrc;
-      document.getElementById('modal-link').href = siteUrl;
+      // open link via proxy on button click:
+      const modalLink = document.getElementById('modal-link');
+      modalLink.href = "javascript:void(0)";
+      modalLink.onclick = () => openUnblocked(siteUrl);
       document.getElementById('image-modal').style.display = 'flex';
     };
     window.closeModal = () => document.getElementById('image-modal').style.display = 'none';
 
-    // Make hummingbird logo redirect to search?q=
+    // Make hummingbird logo redirect to /search?q=
     document.addEventListener('DOMContentLoaded', () => {
       const logo = document.querySelector('header .logo-img');
       if (logo) {
         logo.style.cursor = 'pointer';
         logo.onclick = () => {
           const q = document.getElementById('query').value.trim();
-          window.location.href = `search?q=${encodeURIComponent(q)}`;
+          window.location.href = `/search?q=${encodeURIComponent(q)}`;
         };
       }
     });
@@ -274,7 +283,7 @@ body.modern .btn { border: 2px solid var(--emerald); background: #000; color: va
 body.classic { background: var(--win-grey); color: #000; font-family: "Tahoma", "MS Sans Serif", sans-serif; padding: 180px 20px 40px 20px; margin: 0; }
 body.classic #search-container { background: var(--win-grey); padding: 15px; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; }
 body.classic .result-item { background: #fff; border: 2px inset #fff; padding: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; max-width: 800px; }
-body.classic .result-item a { color: #0000FF; text-decoration: underline; font-size: 1.1rem; }
+body.classic .result-item a { color: #0000FF; text-decoration: underline; font-size: 1.1rem; cursor:pointer; }
 body.classic .res-thumb { width: 100px; height: 100px; border: 1px solid #000; margin-left: 15px; }
 
 /* Neutral signin form colors in classic style and NO curves */
