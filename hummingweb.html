@@ -39,7 +39,7 @@
     let chatHistory = [];
     let currentUser = null;
 
-    // Utility: wrap URLs with proxy to bypass blocks
+    // Utility: wrap URLs with proxy to bypass blocks (kept intact)
     function proxyUrl(url) {
       return `https://corsproxy.io/?${encodeURIComponent(url)}`;
     }
@@ -47,7 +47,6 @@
     // Open links inside the app with /search?q=... proxy for external sites
     function openUnblocked(url) {
       const encoded = encodeURIComponent(url);
-      // Redirect inside app with search?q= or proxy directly
       window.location.href = `/search?q=${encoded}`;
     }
 
@@ -137,6 +136,13 @@
     async function executeSearch() {
       const q = queryInput.value.trim();
       if (!q) return;
+
+      // Make it act like a real search engine by updating the URL bar
+      const currentUrlParams = new URLSearchParams(window.location.search);
+      if (currentUrlParams.get('q') !== q) {
+        window.history.pushState({ query: q }, '', '?q=' + encodeURIComponent(q));
+      }
+
       if (mode === "ai") { await runAiChat(q); return; }
 
       resultsArea.innerHTML = "<div class='loading'>Our hummingbird army is looking for relevant sites...</div>";
@@ -163,7 +169,7 @@
           }
         }
 
-        // RESULTS RENDERING with proxied URLs to bypass blocks
+        // RESULTS RENDERING (Fixed direct links to remove javascript:void(0))
         if (mode === "images") {
           html += `<div class="grid-container">` + data.images.map(img => `
             <div class="card" onclick="openImageModal('${img.imageUrl}', '${img.link.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')">
@@ -171,7 +177,7 @@
             </div>`).join("") + `</div>`;
         } else if (mode === "shopping") {
           html += `<div class="grid-container">` + data.shopping.map(s => `
-            <div class="card"><a href="javascript:void(0)" onclick="openUnblocked('${s.link.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')"><img src="${s.imageUrl}"><b>${s.price}</b><p>${s.title}</p></a></div>
+            <div class="card"><a href="${s.link}" target="_self"><img src="${s.imageUrl}"><b>${s.price}</b><p>${s.title}</p></a></div>
            `).join("") + `</div>`;
         } else {
           const items = data.organic || data.videos || [];
@@ -182,7 +188,7 @@
             return `
               <div class="result-item">
                 <div class="res-content">
-                  <a href="javascript:void(0)" onclick="openUnblocked('${i.link.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')">${i.title}</a>
+                  <a href="${i.link}" target="_self">${i.title}</a>
                   <p>${i.snippet || i.description || ""}</p>
                 </div>
                 ${thumb}
@@ -224,22 +230,26 @@
     // --- IMAGE MODAL LOGIC ---
     window.openImageModal = (imgSrc, siteUrl) => {
       document.getElementById('modal-img').src = imgSrc;
-      // open link via proxy on button click:
       const modalLink = document.getElementById('modal-link');
-      modalLink.href = "javascript:void(0)";
-      modalLink.onclick = () => openUnblocked(siteUrl);
+      modalLink.href = siteUrl; // Directly link to source
       document.getElementById('image-modal').style.display = 'flex';
     };
     window.closeModal = () => document.getElementById('image-modal').style.display = 'none';
 
-    // Make hummingbird logo redirect to /search?q=
+    // Auto-search if URL has ?q= and reset logo click
     document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const q = urlParams.get('q');
+      if (q) {
+        document.getElementById('query').value = q;
+        executeSearch();
+      }
+
       const logo = document.querySelector('header .logo-img');
       if (logo) {
         logo.style.cursor = 'pointer';
         logo.onclick = () => {
-          const q = document.getElementById('query').value.trim();
-          window.location.href = `/search?q=${encodeURIComponent(q)}`;
+          window.location.href = window.location.pathname; // Resets to home
         };
       }
     });
@@ -249,15 +259,15 @@
     /* VARIABLES */
     :root { --emerald: #90E4C1; --bg-modern: #051a05; --win-teal: #008080; --win-grey: #c0c0c0; }
 
-body.modern { 
+body.modern {
   background: linear-gradient(135deg, #0a2e0a, #1a5d1a, #0a2e0a, #1a5d1a);
   background-size: 400% 400%;
   animation: gradientBG 20s ease infinite;
 
-  color: #fff; 
-  font-family: 'Inter', sans-serif; 
-  padding: 180px 20px 40px 20px; 
-  margin: 0; 
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  padding: 180px 20px 40px 20px;
+  margin: 0;
 }
 
 /* gradient animation */
@@ -273,6 +283,30 @@ body.modern .res-thumb { width: 120px; height: 120px; border-radius: 12px; objec
 body.modern #query { background: rgba(0,0,0,0.6); border: 2px solid var(--emerald); color: #fff; border-radius: 12px; }
 body.modern .ai-overview { background: rgba(144, 228, 193, 0.1); border-left: 6px solid var(--emerald); border-radius: 12px; padding: 20px; margin-bottom: 30px; max-width: 800px; }
 body.modern .btn { border: 2px solid var(--emerald); background: #000; color: var(--emerald); border-radius: 8px; }
+
+/* MODERN SIGN-IN BOX POSITIONING */
+#signin-form {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  background: #000;
+  border: 2px solid var(--emerald);
+  padding: 20px;
+  border-radius: 12px;
+  z-index: 1000;
+  width: 280px;
+  box-sizing: border-box;
+}
+#signin-form input {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #222;
+  color: #fff;
+  border: 1px solid var(--emerald);
+  box-sizing: border-box;
+  border-radius: 6px;
+}
 
 /* AI mode tab in modern style */
 #tab-ai {
