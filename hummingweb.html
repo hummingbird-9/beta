@@ -318,20 +318,31 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
       });
     }
 
-    // THE DOSEARCH FIX (Must be global)
+</script> <script>
+    // GLOBAL SEARCH FIX
+    // This connects your HTML button to your JavaScript logic
     function doSearch() {
-      // NOTE: I changed this to match your event listener name!
-      const event = new CustomEvent('execute-hummingweb'); 
-      window.dispatchEvent(event);
+      window.dispatchEvent(new CustomEvent('execute-hummingweb'));
     }
-  </script>
 
-  // 3. THE DOSEARCH FIX (This must be global)
-  function doSearch() {
-    const event = new CustomEvent('execute-humming-search');
-    window.dispatchEvent(event);
-  }
-</script>
+    // NEW PROXY LOGIC (Using a public gateway since files are missing)
+    window.openUnblocked = (url) => {
+      const viewer = document.getElementById("site-viewer");
+      const iframe = document.getElementById("site-iframe");
+      
+      // If you don't have bundle.js/config.js, we use a direct proxy wrapper
+      // This bypasses the need for the local 'assets' folder
+      let proxyTarget = "https://corsproxy.io/?" + encodeURIComponent(url);
+      
+      iframe.src = proxyTarget;
+      viewer.style.display = "flex";
+    };
+
+    window.closeSiteViewer = () => {
+      document.getElementById("site-viewer").style.display = "none";
+      document.getElementById("site-iframe").src = "";
+    };
+  </script>
   <style>
     /* VARIABLES */
     :root { --emerald: #90E4C1; --bg-modern: #051a05; --win-teal: #008080; --win-grey: #c0c0c0; }
